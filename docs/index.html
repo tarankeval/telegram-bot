@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Документация Telegram‑бота Taran Keval Singh</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f3ff;
+      color: #222;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, #c29fff, #7a4eff);
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.4rem;
+    }
+    section {
+      max-width: 900px;
+      margin: 30px auto;
+      background: white;
+      padding: 25px 30px;
+      border-radius: 14px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    h2 {
+      color: #5a2ac7;
+      margin-top: 0;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="logo-block">
+      <img src="logo-hatha-yoga-lotus.png" alt="Hatha Yoga Lotus" class="logo" />
+      <div class="brand-text">
+        <div class="brand-name">Hatha Yoga Lotus 🪷</div>
+        <div class="brand-sub">Telegram Bot • Taran Keval Singh</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="#overview-ru">Обзор</a>
+      <a href="#benefits-ru">Пользовательские плюсы</a>
+      <a href="#auto-ru">Автообновления</a>
+      <a href="#stability-ru">Стабильность</a>
+      <a href="#screenshots">Скриншоты</a>
+      <a href="#overview-en">EN Overview</a>
+    </nav>
+  </div>
+  <div class="hero">
+    <h1>Документация Telegram-бота Taran Keval Singh</h1>
+    <p>Автономный духовный ассистент, работающий на домашнем сервере</p>
+  </div>
+</header>
+
+<section id="overview-ru">
+  <h2>1. Что получают пользователи после обновления системы</h2>
+  <p>После перехода бота на Docker и автоматизированный серверный контур, пользователи ощущают прямые выгоды в стабильности, скорости и предсказуемости взаимодействия. Изменения, произведённые «под капотом», делают опыт общения надёжным и гладким.</p>
+
+  <h3 id="benefits-ru">Основные преимущества для пользователя:</h3>
+  <ul>
+    <li><strong>Мгновенный отклик.</strong> Бот работает в изолированной среде Docker, поэтому отвечает быстрее и стабильнее, чем раньше.</li>
+    <li><strong>Почти нулевая вероятность ошибок.</strong> Ежедневная автоматическая оптимизация предотвращает зависания и сбои.</li>
+    <li><strong>Полная автономность.</strong> Даже если компьютер перезагрузился, бот сам поднимается без задержек — пользователь не ощущает пауз.</li>
+    <li><strong>Непрерывность 24/7.</strong> Бот доступен круглосуточно, как настоящий цифровой спутник.</li>
+    <li><strong>Свежие возможности.</strong> Система автоматически получает обновления из GitHub, поэтому новые функции появляются без перерывов в работе.</li>
+    <li><strong>Надёжность «как у больших сервисов».</strong> Использование Docker и systemd — тот же подход, который используют Amazon, Google и крупные облачные платформы.</li>
+    <li><strong>Отсутствие ручных перезапусков.</strong> Для пользователя — никаких простоев, всё происходит незаметно.</li>
+    <li><strong>Стабильное распознавание голоса, изображений и генерация.</strong> Благодаря чистой контейнерной среде все модули работают без конфликтов.</li>
+    <li><strong>Ежедневное очищение и обновление кэша.</strong> Бот не замедляется со временем, оставаясь быстрым, как в первый день.</li>
+  </ul>
+</section>
+
+<section id="auto-ru">
+  <h2>2. Автономность бота</h2>
+  <p>Бот больше не зависит от терминала, интерфейса или текущей сессии пользователя. Он живёт в отдельной среде, которую можно сравнить с маленьким серверным храмом:</p>
+  <ul>
+    <li>Он запускается сам.</li>
+    <li>Работает сам.</li>
+    <li>Обновляется сам.</li>
+    <li>Следит за собой сам.</li>
+    <li>Докладывает своему Гуру о своём состоянии.</li>
+  </ul>
+</section>
+
+<section>
+  <h2 id="auto-update-ru">3. Автоматические обновления</h2>
+  <p>Каждый день в установленное время бот:</p>
+  <ul>
+    <li>Обновляет код с GitHub</li>
+    <li>Пересобирает контейнер Docker</li>
+    <li>Перезапускается с новыми возможностями</li>
+    <li>Отправляет отчёт в Telegram владельцу</li>
+  </ul>
+  <p>Пользователь получает новую функциональность без перерывов в общении.</p>
+</section>
+
+<section id="stability-ru">
+  <h2>4. Стабильность и надёжность</h2>
+  <p>Благодаря изолированной среде Docker бот не зависит от программ, установленных в системе — он не может «сломаться» из-за случайных обновлений Chromebook. Всё хранится в контейнере, все зависимости фиксированы.</p>
+</section>
+
+<section>
+  <h2>5. Логи и мониторинг</h2>
+  <p>Система ведёт журнал:</p>
+  <ul>
+    <li><code>/var/log/telegrambot-update.log</code> — история обновлений</li>
+    <li>Состояние контейнера проверяется после каждого апдейта</li>
+    <li>Владелец получает отчёт о состоянии бота</li>
+  </ul>
+</section>
+
+<section id="screenshots">
+  <h2>6. Скриншоты интерфейса и рабочего стола</h2>
+  <p>Ниже можно разместить реальные изображения рабочего стола, настроенного под macOS-стиль, и примеры диалога с ботом:</p>
+  <ul>
+    <li><strong>Снимок 1:</strong> Рабочий стол Chromebook с открытым Telegram и ботом.</li>
+    <li><strong>Снимок 2:</strong> Linux-терминал с логами docker-compose.</li>
+    <li><strong>Снимок 3:</strong> Пример диалога с ботом (голос и текст).</li>
+  </ul>
+  <p>Для реального сайта сюда можно вставить теги <code>&lt;img&gt;</code> с путями к изображениям.</p>
+</section>
+
+<section id="overview-en">
+  <h2>7. User-facing benefits (English summary)</h2>
+  <p>After migrating the bot to a Docker-based, automated server setup, end users receive a more stable, predictable and smooth interaction. All changes done "under the hood" improve reliability without requiring any extra steps from the user.</p>
+
+  <h3>Main benefits for the user:</h3>
+  <ul>
+    <li><strong>Fast response.</strong> The bot runs inside an isolated Docker environment, which keeps it responsive and stable.</li>
+    <li><strong>Minimal errors.</strong> Daily automated restarts and updates reduce the risk of hangs and crashes.</li>
+    <li><strong>Full autonomy.</strong> Even if the host machine reboots, the bot is brought back online automatically.</li>
+    <li><strong>24/7 availability.</strong> The bot can be treated as a permanently available digital companion.</li>
+    <li><strong>Seamless feature updates.</strong> New features are deployed through GitHub without noticeable downtime.</li>
+    <li><strong>Production-grade reliability.</strong> Docker and systemd are the same technologies used in large-scale cloud infrastructures.</li>
+    <li><strong>No manual restarts required.</strong> From the user standpoint, everything "just works".</li>
+    <li><strong>Stable voice, image and text processing.</strong> The containerized environment keeps libraries and dependencies consistent.</li>
+  </ul>
+</section>
+
+<footer>
+  © Taran Keval Singh — Hatha Yoga Lotus 🪷 — Автономный цифровой ассистент
+</footer>
+
+</body>
+</html>
