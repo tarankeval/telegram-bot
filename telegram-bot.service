@@ -1,0 +1,13 @@
+[Unit]
+Description=Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/твой_пользователь/telegram-bot
+ExecStart=/home/твой_пользователь/telegram-bot/venv/bin/python /home/твой_пользователь/telegram-bot/bot.py
+Restart=always
+
+[Install]
+WantedBy=default.target
+

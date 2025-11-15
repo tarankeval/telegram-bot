@@ -1,0 +1,25 @@
+# виртуальная среда
+venv/
+ENV/
+VENV/
+.vscode/
+
+# история диалогов и логи
+chat_histories.json
+history_*.json
+chat.history
+*.log
+*.pid
+
+# системные файлы Python
+__pycache__/
+*.pyc
+
+# системные файлы ОС
+.DS_Store
+
+# возможные секреты
+*.secret
+*.key
+*.token
+
