@@ -10,21 +10,15 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from openai import OpenAI
 
-# ================================
-# 🔑 КЛЮЧИ (ВСТАВЬ СВОИ)
-# ================================
-TELEGRAM_TOKEN = "(ВСТАВЬ СВОИ)"
-OPENAI_API_KEY = "(ВСТАВЬ СВОИ)"
+# 🔑 Ключи берём из окружения
+TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN")
+OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY")
+CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY")
 
-# Cartesia
-CARTESIA_API_KEY = "(ВСТАВЬ СВОИ)"      # sk_car_...
-CARTESIA_VOICE_ID = "(ВСТАВЬ СВОИ)"    
-CARTESIA_MODEL_ID = "sonic-3"
-CARTESIA_VERSION = "2025-04-16"
-
-GURU_CHAT_ID = 642590466
+GURU_CHAT_ID = 642590466  # это можно оставить как есть
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
