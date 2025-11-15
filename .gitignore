@@ -3,6 +3,7 @@ venv/
 ENV/
 VENV/
 .vscode/
+.env/
 
 # история диалогов и логи
 chat_histories.json
