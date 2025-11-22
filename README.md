@@ -1,3 +1,7 @@
+## Версия
+
+Текущая версия: **GuruChat 2.0 "Kala Awakening"**
+
 # 🕉️ Taran Keval Telegram Bot
 
 Духовный Telegram-бот школы **Hatha Yoga Lotus 🪷**,  
