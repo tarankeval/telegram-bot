@@ -1,61 +1,142 @@
-## Версия
+# GuruChat Telegram Bot
 
-Текущая версия: **GuruChat 2.0 "Kala Awakening"**
+Telegram-бот школы Hatha Yoga Lotus для текстового и голосового общения, практических советов, историй, мантр и генерации изображений.
 
-# 🕉️ Taran Keval Telegram Bot
+Текущая версия: **GuruChat 2.0 "Kala Awakening"**.
 
-Духовный Telegram-бот школы **Hatha Yoga Lotus 🪷**,  
-который помогает ученикам на пути практики и теперь говорит **голосом Тарэн Кевал Сингха**.
+## Возможности
 
----
+- Диалог через OpenAI с настраиваемыми файлами `personality.txt` и `knowledge.txt`.
+- Мантры, советы, истории и песни из текстовых файлов проекта.
+- Распознавание голосовых сообщений.
+- Необязательная озвучка ответов через Cartesia.
+- Генерация изображений по `/draw` и естественным запросам.
+- Ответы в группах при упоминании имени бота.
+- Команда `/reply` для ответа пользователю из чата администратора.
 
-## ✨ Возможности бота
+## Требования
 
-- 💬 Мягкое и тёплое общение в личке
-- 🌸 «Мантра дня» — случайная мантра из файла `mantras.txt`
-- 🌿 «Совет по практике» — короткие наставления из `advices.txt`
-- 📖 Истории и притчи из `stories.txt`
-- 🎶 «Песня дня» из списка `songs.txt`
-- 🎨 Генерация картинок по текстовому описанию  
-  — и через команду `/draw`, и по естественным фразам типа «нарисуй...»
-- 🧘‍♂️ Guru-режим: все вопросы и ответы дублируются Гуру в личку
-- 👥 Работа в группах: бот отвечает, когда его упоминают `@username`
-- 🎙️ Голосовые сообщения:
-  - распознаёт речь (STT)
-  - отвечает **реальным голосом Тарэна** через Cartesia TTS
+- Python 3.11 или новее.
+- Telegram Bot Token от BotFather.
+- OpenAI API key.
+- Необязательно: Cartesia API key, model ID и voice ID.
 
----
-
-## 📁 Структура файлов
-
-- `bot.py` — основной код бота
-- `personality.txt` — описание личности бота (тон общения)
-- `knowledge.txt` — дополнительные знания и подсказки
-- `mantras.txt` — список мантр
-- `advices.txt` — советы по практике
-- `stories.txt` — истории и притчи
-- `songs.txt` — список песен
-- `read_history.py` — вспомогательный скрипт для чтения истории
-- `test_image.py` — тест генерации картинок
-- `telegram-bot.service` — пример unit-файла для systemd
-- `requirements.txt` — зависимости проекта
-- `.gitignore` — список файлов, которые не попадают в репозиторий
-
-История диалогов (`history_*.json`, `chat_histories.json`), логи (`bot.log`)  
-и виртуальное окружение (`venv/`) **не хранятся в репозитории**.
-
----
-
-## 🚀 Установка и запуск
+## Установка
 
 ```bash
-# клонируем репозиторий
 git clone https://github.com/tarankeval/telegram-bot.git
 cd telegram-bot
 
-# создаём виртуальное окружение (по желанию)
 python3 -m venv venv
 source venv/bin/activate
-
-# ставим зависимости
 pip install -r requirements.txt
+
+cp .env.example .env
+```
+
+Заполните `.env`:
+
+```dotenv
+TELEGRAM_TOKEN=...
+OPENAI_API_KEY=...
+GURU_CHAT_ID=642590466
+HISTORY_DIR=.
+```
+
+Для голосовых ответов нужно заполнить все параметры Cartesia:
+
+```dotenv
+CARTESIA_API_KEY=...
+CARTESIA_VERSION=...
+CARTESIA_MODEL_ID=...
+CARTESIA_VOICE_ID=...
+```
+
+Если Cartesia не настроена полностью, бот продолжит работать без озвучки ответов.
+
+## Запуск
+
+Обычный запуск:
+
+```bash
+source venv/bin/activate
+python bot.py
+```
+
+Управление фоновым процессом:
+
+```bash
+chmod +x run.sh
+./run.sh start
+./run.sh status
+./run.sh restart
+./run.sh stop
+```
+
+## Docker
+
+```bash
+docker build -t guruchat-bot .
+docker run --env-file .env --name guruchat-bot guruchat-bot
+```
+
+Для сохранения истории между перезапусками контейнера подключите каталог:
+
+```bash
+docker run --env-file .env -e HISTORY_DIR=/app/data -v "$PWD/data:/app/data" guruchat-bot
+```
+
+По умолчанию бот пишет `history_YYYY-MM-DD.json` в текущий рабочий каталог. Переменная `HISTORY_DIR` задаёт другой каталог.
+
+## Systemd
+
+Пример `telegram-bot.service` рассчитан на user service и каталог `~/telegram-bot`:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp telegram-bot.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now telegram-bot
+systemctl --user status telegram-bot
+```
+
+## Проверки
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+python -m unittest discover -s tests -v
+```
+
+GitHub Actions выполняет эти проверки на Python 3.11 и 3.12.
+
+## Структура
+
+- `bot.py` — Telegram handlers и интеграции с внешними API.
+- `config.py` — загрузка и проверка переменных окружения.
+- `storage.py` — атомарная запись локальной истории.
+- `helpers.py` — чистые функции распознавания команд и подготовки контекста.
+- `personality.txt` — стиль и характер ответов.
+- `knowledge.txt` — дополнительные знания бота.
+- `mantras.txt`, `advices.txt`, `stories.txt`, `songs.txt` — контент кнопок.
+- `scripts/manual_image_test.py` — ручная проверка OpenAI Images API.
+- `tests/` — автоматические unit-тесты.
+
+## Конфиденциальность
+
+Это важно учитывать перед использованием:
+
+- Текст, голосовые расшифровки и изображения отправляются внешним AI API для обработки.
+- Вопросы пользователей и ответы бота пересылаются в чат `GURU_CHAT_ID`.
+- История диалогов сохраняется локально в файлах `history_YYYY-MM-DD.json`.
+- Эти файлы, `.env`, ключи, логи и временные медиа исключены из Git.
+
+Перед публичным запуском сообщите пользователям об обработке данных и получите необходимое согласие согласно правилам вашей юрисдикции.
+
+## Ручная проверка генерации изображений
+
+```bash
+python -m scripts.manual_image_test
+```
+
+Скрипт использует `OPENAI_API_KEY` из `.env` и не является частью автоматических тестов.

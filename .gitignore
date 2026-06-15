@@ -4,6 +4,7 @@ ENV/
 VENV/
 .vscode/
 .env/
+.env
 
 # история диалогов и логи
 chat_histories.json
@@ -11,10 +12,15 @@ history_*.json
 chat.history
 *.log
 *.pid
+voice_*.ogg
+reply_*.mp3
+draw_*.png
 
 # системные файлы Python
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
 # системные файлы ОС
 .DS_Store
@@ -23,4 +29,3 @@ __pycache__/
 *.secret
 *.key
 *.token
-
