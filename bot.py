@@ -1,23 +1,21 @@
-import os
-import json
 import base64
+import asyncio
 import logging
 import requests
 import random
-from datetime import datetime
+import tempfile
+from pathlib import Path
 
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from openai import OpenAI
+from config import load_settings
+from helpers import extract_prompt, recent_messages, wants_image
+from storage import load_last_history, save_message
 
-# 🔑 Ключи берём из окружения
-TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY")
-CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY")
-
-GURU_CHAT_ID = 642590466  # это можно оставить как есть
-
-client = OpenAI(api_key=OPENAI_API_KEY)
+settings = load_settings()
+GURU_CHAT_ID = settings.guru_chat_id
+client = OpenAI(api_key=settings.openai_api_key)
 
 
 logging.basicConfig(
@@ -41,53 +39,21 @@ def load_knowledge():
     except FileNotFoundError:
         return ""
 
-# ===== История =====
-def load_last_history():
-    files = [f for f in os.listdir() if f.startswith("history_") and f.endswith(".json")]
-    if not files:
-        return {}
-    files.sort()
-    last_file = files[-1]
-    try:
-        with open(last_file, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {}
-
-chat_histories = load_last_history()
-
-def save_message(chat_id, role, content):
-    today = datetime.now().strftime("%Y-%m-%d")
-    file_path = f"history_{today}.json"
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except:
-            data = {}
-    else:
-        data = {}
-    data.setdefault(str(chat_id), []).append({
-        "role": role,
-        "content": content,
-        "time": datetime.now().strftime("%H:%M:%S")
-    })
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+chat_histories = load_last_history(settings.history_dir)
 
 # ===== Вспомогательные =====
 def load_lines(filename):
     try:
         with open(filename, "r", encoding="utf-8") as f:
             return [line.strip() for line in f if line.strip()]
-    except:
+    except OSError:
         return ["(нет данных)"]
 
 def load_songs():
     try:
         with open("songs.txt", "r", encoding="utf-8") as f:
             return [line.strip() for line in f if line.strip()]
-    except:
+    except OSError:
         return []
 
 songs = load_songs()
@@ -99,16 +65,16 @@ def tts_cartesia_to_file(text: str, filename: str):
     """
     url = "https://api.cartesia.ai/tts/bytes"
     headers = {
-        "X-API-Key": CARTESIA_API_KEY,
-        "Cartesia-Version": CARTESIA_VERSION,
+        "X-API-Key": settings.cartesia_api_key,
+        "Cartesia-Version": settings.cartesia_version,
         "Content-Type": "application/json",
     }
     payload = {
-        "model_id": CARTESIA_MODEL_ID,
+        "model_id": settings.cartesia_model_id,
         "transcript": text,
         "voice": {
             "mode": "id",
-            "id": CARTESIA_VOICE_ID,
+            "id": settings.cartesia_voice_id,
         },
         "output_format": {
             "container": "mp3",
@@ -118,58 +84,13 @@ def tts_cartesia_to_file(text: str, filename: str):
         "language": "ru",
     }
 
-    resp = requests.post(url, headers=headers, json=payload)
+    if not settings.cartesia_enabled:
+        raise RuntimeError("Cartesia TTS is not configured")
+
+    resp = requests.post(url, headers=headers, json=payload, timeout=60)
     resp.raise_for_status()
     with open(filename, "wb") as f:
         f.write(resp.content)
-
-# --- Авто-триггер рисования по тексту ---
-DRAW_TRIGGERS = [
-    # 🇷🇺 Русские
-    "нарисуй",
-    "изобрази",
-    "создай картинку",
-    "создай изображение",
-    "сделай рисунок",
-    "сотвори картину",
-    "generate image",
-    "draw picture",
-    "create artwork",
-    "сделай арт",
-    "artwork",
-
-    # 🇬🇧 Английские
-    "draw", "drawing", "can you draw", "please draw", "sketch", "picture",
-    "image", "generate image", "make image", "make a picture", "create image",
-    "illustration", "art", "artwork", "paint", "painting", "render", "design",
-
-    # 🇨🇿 Чешские
-    "nakresli", "můžeš nakreslit", "obrázek", "obraz", "ilustrace", "kresba",
-    "udělej obrázek", "vytvoř obrázek", "generuj obrázek",
-
-    # 🇺🇦 Украинские
-    "намалюй", "зроби картинку", "малюнок", "зобрази", "створи образ",
-
-    # Доп. синонимы
-    "арт картинка", "цифровое искусство", "digital art", "rendering", "concept art",
-    "sketching", "visualize", "visualization", "show me", "покажи изображение"
-]
-
-def wants_image(text: str) -> bool:
-    if not text:
-        return False
-    return any(w in text.lower() for w in DRAW_TRIGGERS)
-
-def extract_prompt(text: str) -> str:
-    if not text:
-        return ""
-    t = text.strip()
-    tl = t.lower()
-    starts = ["нарисуй", "создай", "сделай", "сгенерируй", "изобрази", "сотвори", "draw", "make", "generate"]
-    for w in starts:
-        if tl.startswith(w):
-            return t[len(w):].lstrip(" :,-—")
-    return t
 
 # ===== Handlers =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -233,13 +154,23 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     fobj = await context.bot.get_file(update.message.voice.file_id)
-    local_path = f"voice_{chat_id}.ogg"
-    await fobj.download_to_drive(local_path)
+    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as temp_file:
+        local_path = Path(temp_file.name)
 
-    with open(local_path, "rb") as f:
-        transcript = client.audio.transcriptions.create(model="gpt-4o-mini-transcribe", file=f)
+    try:
+        await fobj.download_to_drive(local_path)
+
+        def transcribe_voice():
+            with local_path.open("rb") as audio_file:
+                return client.audio.transcriptions.create(
+                    model="gpt-4o-mini-transcribe", file=audio_file
+                )
+
+        transcript = await asyncio.to_thread(transcribe_voice)
+    finally:
+        local_path.unlink(missing_ok=True)
     text = transcript.text or "(пусто)"
-    save_message(chat_id, "user", f"[voice] {text}")
+    save_message(chat_id, "user", f"[voice] {text}", settings.history_dir)
 
     # уведомим Гуру о входящем голосе
     await context.bot.send_message(
@@ -249,21 +180,26 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ответ бота
     system_message = {"role": "system", "content": load_personality() + "\n\n" + load_knowledge()}
-    response = client.chat.completions.create(
+    response = await asyncio.to_thread(
+        client.chat.completions.create,
         model="gpt-4o-mini",
-        messages=[system_message, {"role": "user", "content": text}]
+        messages=[system_message, {"role": "user", "content": text}],
     )
     bot_reply = response.choices[0].message.content
-    save_message(chat_id, "assistant", bot_reply)
+    save_message(chat_id, "assistant", bot_reply, settings.history_dir)
 
     await update.message.reply_text(bot_reply)
 
     # TTS через Cartesia твоим голосом
     try:
-        speech_file = f"reply_{chat_id}.mp3"
-        tts_cartesia_to_file(bot_reply, speech_file)
-        with open(speech_file, "rb") as vf:
-            await context.bot.send_voice(chat_id=update.effective_chat.id, voice=vf)
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
+            speech_file = Path(temp_file.name)
+        try:
+            await asyncio.to_thread(tts_cartesia_to_file, bot_reply, str(speech_file))
+            with speech_file.open("rb") as voice_file:
+                await context.bot.send_voice(chat_id=update.effective_chat.id, voice=voice_file)
+        finally:
+            speech_file.unlink(missing_ok=True)
     except Exception as e:
         logging.warning(f"TTS error: {e}")
 
@@ -289,23 +225,33 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     file = await context.bot.get_file(update.message.photo[-1].file_id)
-    image_url = file.file_path
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
+        image_path = Path(temp_file.name)
 
-    save_message(chat_id, "user", "[photo] (изображение)")
+    save_message(chat_id, "user", "[photo] (изображение)", settings.history_dir)
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Опиши фото красиво и бережно."},
-            {"role": "user",
-             "content": [
-                {"type": "text", "text": "Опиши это изображение мягко и с любовью."},
-                {"type": "image_url", "image_url": {"url": image_url}}
-             ]}
-        ]
-    )
+    try:
+        await file.download_to_drive(image_path)
+        image_data = base64.b64encode(image_path.read_bytes()).decode("ascii")
+        image_url = f"data:image/jpeg;base64,{image_data}"
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Опиши фото красиво и бережно."},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Опиши это изображение мягко и с любовью."},
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                    ],
+                },
+            ],
+        )
+    finally:
+        image_path.unlink(missing_ok=True)
     reply = response.choices[0].message.content
-    save_message(chat_id, "assistant", reply)
+    save_message(chat_id, "assistant", reply, settings.history_dir)
 
     await update.message.reply_text(f"🖼️ {reply}")
 
@@ -320,7 +266,7 @@ async def _generate_and_send_image(update, context, prompt_text: str):
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
 
-    save_message(chat_id, "user", f"[draw] {prompt_text}")
+    save_message(chat_id, "user", f"[draw] {prompt_text}", settings.history_dir)
     await context.bot.send_message(
         chat_id=GURU_CHAT_ID,
         text=f"🖼 Запрос /draw от {user.first_name} (@{user.username})\n(chat_id: {chat_id})\n\nТекст: {prompt_text}"
@@ -329,16 +275,23 @@ async def _generate_and_send_image(update, context, prompt_text: str):
     await update.message.reply_text("🎨 Создаю образ... несколько секунд...")
 
     try:
-        img_resp = client.images.generate(model="gpt-image-1", prompt=prompt_text, size="1024x1024")
+        img_resp = await asyncio.to_thread(
+            client.images.generate, model="gpt-image-1", prompt=prompt_text, size="1024x1024"
+        )
         b64 = img_resp.data[0].b64_json
         img_bytes = base64.b64decode(b64)
-        out_name = f"draw_{int(datetime.now().timestamp())}.png"
-        with open(out_name, "wb") as f:
-            f.write(img_bytes)
-        with open(out_name, "rb") as pic:
-            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=pic, caption="🖼 Готово.")
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
+            out_name = Path(temp_file.name)
+            temp_file.write(img_bytes)
+        try:
+            with out_name.open("rb") as picture:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id, photo=picture, caption="🖼 Готово."
+                )
+        finally:
+            out_name.unlink(missing_ok=True)
 
-        save_message(chat_id, "assistant", f"[image_generated] {prompt_text}")
+        save_message(chat_id, "assistant", f"[image_generated] {prompt_text}", settings.history_dir)
 
         await context.bot.send_message(
             chat_id=GURU_CHAT_ID,
@@ -381,28 +334,33 @@ async def chat_with_gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # лог + форвард в Гуру
     chat_histories.setdefault(chat_id, []).append({"role": "user", "content": user_message})
-    save_message(chat_id, "user", user_message)
+    save_message(chat_id, "user", user_message, settings.history_dir)
     forward_text = f"❓ Вопрос от {user.first_name} (@{user.username}):\n{user_message}\n(chat_id: {chat_id})"
     await context.bot.send_message(chat_id=GURU_CHAT_ID, text=forward_text)
 
     # ответ с учётом личности/знаний + истории
     system_message = {"role": "system", "content": load_personality() + "\n\n" + load_knowledge()}
-    response = client.chat.completions.create(
+    response = await asyncio.to_thread(
+        client.chat.completions.create,
         model="gpt-4o-mini",
-        messages=[system_message] + chat_histories[chat_id]
+        messages=[system_message] + recent_messages(chat_histories[chat_id]),
     )
     bot_reply = response.choices[0].message.content
 
     chat_histories[chat_id].append({"role": "assistant", "content": bot_reply})
-    save_message(chat_id, "assistant", bot_reply)
+    save_message(chat_id, "assistant", bot_reply, settings.history_dir)
 
     # текст + TTS голосом
     await update.message.reply_text(bot_reply)
     try:
-        speech_file = f"reply_{chat_id}.mp3"
-        tts_cartesia_to_file(bot_reply, speech_file)
-        with open(speech_file, "rb") as vf:
-            await context.bot.send_voice(chat_id=update.effective_chat.id, voice=vf)
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
+            speech_file = Path(temp_file.name)
+        try:
+            await asyncio.to_thread(tts_cartesia_to_file, bot_reply, str(speech_file))
+            with speech_file.open("rb") as voice_file:
+                await context.bot.send_voice(chat_id=update.effective_chat.id, voice=voice_file)
+        finally:
+            speech_file.unlink(missing_ok=True)
     except Exception as e:
         logging.warning(f"TTS error: {e}")
 
@@ -425,10 +383,11 @@ async def group_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
 
     system_message = {"role": "system", "content": load_personality() + "\n\n" + load_knowledge()}
-    response = client.chat.completions.create(
+    response = await asyncio.to_thread(
+        client.chat.completions.create,
         model="gpt-4o-mini",
         messages=[system_message, {"role": "user", "content": user_message}],
-        temperature=0.8
+        temperature=0.8,
     )
 
     bot_reply = response.choices[0].message.content
@@ -473,9 +432,22 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=target_chat_id, text=f"📩 Трансцендентный ответ:\n{reply_text}")
         await update.message.reply_text("✅ Ответ отправлен ученику.")
 
+
+async def handle_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logging.exception("Unhandled Telegram update error", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        await update.effective_message.reply_text(
+            "⚠️ Не удалось обработать сообщение. Попробуйте ещё раз немного позже."
+        )
+
+
 # ===== Main =====
 def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    if not settings.cartesia_enabled:
+        logging.warning("Cartesia is not fully configured; voice replies will be disabled")
+
+    app = ApplicationBuilder().token(settings.telegram_token).build()
+    app.add_error_handler(handle_error)
 
     # Команды
     app.add_handler(CommandHandler("start", start))
@@ -503,5 +475,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
